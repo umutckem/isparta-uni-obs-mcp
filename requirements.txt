@@ -1,0 +1,6 @@
+fastmcp
+requests-cache
+requests
+beautifulsoup4
+
+

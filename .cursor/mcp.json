@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "uni-mcp": {
+      "command": "C:\\Users\\umutc\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+      "args": [
+        "server.py"
+      ],
+      "transport": "stdio",
+      "env": {
+        "PYTHONIOENCODING": "utf-8"
+      }
+    }
+  }
+}
+
+

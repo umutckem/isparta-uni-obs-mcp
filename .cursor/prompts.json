@@ -1,0 +1,14 @@
+{
+  "prompts": {
+    "uni-announcements": {
+      "description": "Üniversite duyurularını arar (get_announcements).",
+      "prompt": "Kullanıcıdan konu başlığı al ve MCP tool 'get_announcements' ile ara; sonuçları tarihine göre yeni -> eski sırala ve kısa özetle."
+    },
+    "uni-departments": {
+      "description": "Bölümleri listeler (get_departments).",
+      "prompt": "MCP tool 'get_departments' ile bölümleri çek ve kod, ad, fakülte olarak tablo halinde sun."
+    }
+  }
+}
+
+
