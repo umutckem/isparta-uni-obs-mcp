@@ -44,6 +44,15 @@ from core import (
     student_obs_get_materials,
     student_obs_get_online_education_links,
     student_obs_get_events,
+    # Yeni eklenen özellikler
+    student_obs_get_academic_analytics,
+    student_obs_get_performance_tracking,
+    student_obs_get_course_advisor,
+    student_obs_get_notifications,
+    student_obs_get_notification_settings,
+    student_obs_mark_notification_read,
+    student_obs_export_data,
+    student_obs_get_export_formats,
 )
 
 # MCP server'ı oluştur
@@ -435,6 +444,129 @@ def student_events() -> Dict[str, Any]:
 
 
 # =============================================================================
+# YENİ EKLENEN ÖZELLİKLER
+# =============================================================================
+
+@mcp.tool
+def student_academic_analytics() -> Dict[str, Any]:
+    """
+    Öğrencinin akademik performans analizini yapar.
+    
+    Returns:
+        GPA trend analizi, kredi tamamlama oranı ve ders başarı grafiği
+    """
+    try:
+        return student_obs_get_academic_analytics()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@mcp.tool
+def student_performance_tracking() -> Dict[str, Any]:
+    """
+    Akademik hedefler ve performans takibi.
+    
+    Returns:
+        Performans hedefleri, ilerleme durumu ve hedef önerileri
+    """
+    try:
+        return student_obs_get_performance_tracking()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@mcp.tool
+def student_course_advisor() -> Dict[str, Any]:
+    """
+    Akademik danışmanlık ve ders seçim önerileri.
+    
+    Returns:
+        Ders seçim analizi, ön koşul kontrolü ve öneriler
+    """
+    try:
+        return student_obs_get_course_advisor()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@mcp.tool
+def student_notifications() -> Dict[str, Any]:
+    """
+    Önemli bildirimleri ve uyarıları listeler.
+    
+    Returns:
+        Akademik, devamsızlık, mali ve sistem uyarıları
+    """
+    try:
+        return student_obs_get_notifications()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@mcp.tool
+def student_notification_settings() -> Dict[str, Any]:
+    """
+    Bildirim ayarlarını getirir.
+    
+    Returns:
+        Bildirim tercihleri ve ayarları
+    """
+    try:
+        return student_obs_get_notification_settings()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@mcp.tool
+def student_mark_notification_read(notification_id: str) -> Dict[str, Any]:
+    """
+    Bildirimi okundu olarak işaretler.
+    
+    Args:
+        notification_id: Bildirim ID'si
+        
+    Returns:
+        İşlem sonucu
+    """
+    try:
+        return student_obs_mark_notification_read(notification_id)
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@mcp.tool
+def student_export_data(format: str = "json", data_type: str = "all") -> Dict[str, Any]:
+    """
+    Verileri farklı formatlarda export eder.
+    
+    Args:
+        format: Export formatı (json, csv, pdf, excel)
+        data_type: Veri tipi (all, academic, financial, personal, schedule)
+        
+    Returns:
+        Export edilmiş veri
+    """
+    try:
+        return student_obs_export_data(format, data_type)
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@mcp.tool
+def student_export_formats() -> Dict[str, Any]:
+    """
+    Desteklenen export formatlarını listeler.
+    
+    Returns:
+        Kullanılabilir formatlar ve öneriler
+    """
+    try:
+        return student_obs_get_export_formats()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# =============================================================================
 # SERVER BAŞLATMA
 # =============================================================================
 
@@ -442,19 +574,47 @@ if __name__ == "__main__":
     try:
         print("🚀 Isparta Üniversitesi OBS MCP Server başlatılıyor...")
         print("📚 Kullanılabilir tools:")
-        print("   • get_departments() - Bölüm listesi")
-        print("   • get_announcements() - Duyuru listesi")
+        print("🔐 TEMEL FONKSİYONLAR:")
         print("   • student_login() - Öğrenci girişi")
         print("   • student_logout() - Öğrenci çıkışı")
+        print("   • student_login_debug() - Debug login")
+        print()
+        print("📊 VERİ ÇEKME:")
         print("   • student_profile() - Öğrenci profili")
+        print("   • student_info() - Öğrenci bilgileri")
+        print("   • student_info_parsed() - Parse edilmiş öğrenci bilgileri")
         print("   • student_announcements() - Öğrenci duyuruları")
         print("   • student_courses() - Öğrenci dersleri")
         print("   • student_transcript() - Öğrenci transkripti")
-        print("   • student_info() - Öğrenci bilgileri")
-        print("   • student_info_parsed() - Parse edilmiş öğrenci bilgileri")
-        print("   • parse_student_info() - HTML parse etme")
         print("   • student_navigate_to_page() - Sayfa navigasyonu")
-        print("   • student_login_debug() - Debug login")
+        print("   • parse_student_info() - HTML parse etme")
+        print()
+        print("📅 PROGRAM VE TAKVİM:")
+        print("   • student_weekly_schedule() - Haftalık ders programı")
+        print("   • student_attendance() - Devamsızlık bilgileri")
+        print("   • student_events() - Etkinlikler")
+        print()
+        print("💰 MALİ BİLGİLER:")
+        print("   • student_fees() - Harç bilgileri")
+        print("   • student_library() - Kütüphane borçları")
+        print()
+        print("📋 İŞLEMLER VE BAŞVURULAR:")
+        print("   • student_registration() - Kayıt yenileme")
+        print("   • student_thesis() - Tez işlemleri")
+        print("   • student_internships() - Staj başvuruları")
+        print("   • student_petitions() - Dilekçe işlemleri")
+        print("   • student_materials() - Ders materyalleri")
+        print("   • student_online_education_links() - Online eğitim linkleri")
+        print()
+        print("🚀 YENİ EKLENEN ÖZELLİKLER:")
+        print("   • student_academic_analytics() - Akademik performans analizi")
+        print("   • student_performance_tracking() - Performans takibi ve hedefler")
+        print("   • student_course_advisor() - Ders seçim asistanı")
+        print("   • student_notifications() - Bildirim ve uyarı sistemi")
+        print("   • student_notification_settings() - Bildirim ayarları")
+        print("   • student_mark_notification_read() - Bildirim okundu işaretleme")
+        print("   • student_export_data() - Veri export (JSON, CSV, PDF, Excel)")
+        print("   • student_export_formats() - Desteklenen export formatları")
         print()
         
         # Server'ı başlat

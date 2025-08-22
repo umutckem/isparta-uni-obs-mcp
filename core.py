@@ -1189,5 +1189,1841 @@ def student_obs_get_events() -> Dict[str, Any]:
     return _try_fetch_tables(candidates)
 
 
+# =============================================================================
+# AKADEMİK ANALİZ VE İSTATİSTİKLER
+# =============================================================================
+
+def student_obs_get_academic_analytics() -> Dict[str, Any]:
+    """Öğrencinin akademik performans analizini yapar"""
+    if not _student_obs_session or not _student_obs_base_url:
+        return {"error": "Giriş yapılmamış"}
+    
+    try:
+        # Transkript bilgilerini al
+        transcript_data = student_obs_get_transcript()
+        if "error" in transcript_data:
+            return transcript_data
+        
+        # Dönem derslerini al
+        term_courses = student_obs_get_term_courses()
+        if "error" in term_courses:
+            return term_courses
+        
+        # Öğrenci bilgilerini al
+        student_info = student_obs_get_student_info()
+        if "error" in student_info:
+            return student_info
+        
+        # Analiz verilerini hazırla
+        analytics = _calculate_academic_analytics(transcript_data, term_courses, student_info)
+        
+        return {
+            "success": True,
+            "analytics": analytics,
+            "last_updated": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Akademik analiz hatası: {e}")
+        return {"error": str(e)}
+
+
+def _calculate_academic_analytics(transcript: Dict[str, Any], term_courses: Dict[str, Any], student_info: Dict[str, Any]) -> Dict[str, Any]:
+    """Akademik analiz hesaplamalarını yapar"""
+    try:
+        # GPA trend analizi
+        gpa_trend = _analyze_gpa_trend(transcript)
+        
+        # Kredi tamamlama analizi
+        credit_analysis = _analyze_credit_completion(transcript, student_info)
+        
+        # Ders başarı analizi
+        course_success = _analyze_course_success(transcript, term_courses)
+        
+        # Genel performans skoru
+        overall_score = _calculate_overall_score(gpa_trend, credit_analysis, course_success)
+        
+        return {
+            "gpa_trend": gpa_trend,
+            "credit_analysis": credit_analysis,
+            "course_success": course_success,
+            "overall_score": overall_score,
+            "recommendations": _generate_recommendations(gpa_trend, credit_analysis, course_success)
+        }
+        
+    except Exception as e:
+        logger.error(f"Analiz hesaplama hatası: {e}")
+        return {"error": str(e)}
+
+
+def _analyze_gpa_trend(transcript: Dict[str, Any]) -> Dict[str, Any]:
+    """GPA trend analizini yapar"""
+    try:
+        if "academic_records" not in transcript:
+            return {"error": "Transkript verisi bulunamadı"}
+        
+        records = transcript["academic_records"]
+        gpa_data = []
+        
+        for record in records:
+            if "gpa" in record and record["gpa"]:
+                try:
+                    gpa = float(record["gpa"].replace(",", "."))
+                    gpa_data.append({
+                        "class_level": record.get("class_level", ""),
+                        "gpa": gpa,
+                        "year": record.get("year", "")
+                    })
+                except (ValueError, AttributeError):
+                    continue
+        
+        if not gpa_data:
+            return {"error": "GPA verisi bulunamadı"}
+        
+        # GPA trend hesaplama
+        gpa_data.sort(key=lambda x: x["class_level"])
+        current_gpa = gpa_data[-1]["gpa"] if gpa_data else 0
+        trend = "stable"
+        
+        if len(gpa_data) >= 2:
+            first_gpa = gpa_data[0]["gpa"]
+            if current_gpa > first_gpa + 0.5:
+                trend = "improving"
+            elif current_gpa < first_gpa - 0.5:
+                trend = "declining"
+        
+        return {
+            "current_gpa": current_gpa,
+            "trend": trend,
+            "gpa_history": gpa_data,
+            "improvement_potential": max(0, 4.0 - current_gpa)
+        }
+        
+    except Exception as e:
+        logger.error(f"GPA trend analiz hatası: {e}")
+        return {"error": str(e)}
+
+
+def _analyze_credit_completion(transcript: Dict[str, Any], student_info: Dict[str, Any]) -> Dict[str, Any]:
+    """Kredi tamamlama analizini yapar"""
+    try:
+        if "academic_records" not in transcript:
+            return {"error": "Transkript verisi bulunamadı"}
+        
+        records = transcript["academic_records"]
+        total_credits = 0
+        completed_credits = 0
+        
+        for record in records:
+            if "total_credits" in record and record["total_credits"]:
+                try:
+                    credits = float(record["total_credits"].replace(",", "."))
+                    total_credits = max(total_credits, credits)
+                    completed_credits = credits
+                except (ValueError, AttributeError):
+                    continue
+        
+        # Mezuniyet için gerekli kredi (genellikle 240)
+        required_credits = 240
+        completion_rate = (completed_credits / required_credits) * 100 if required_credits > 0 else 0
+        
+        # Kalan kredi hesaplama
+        remaining_credits = max(0, required_credits - completed_credits)
+        
+        # Tahmini mezuniyet süresi
+        avg_credits_per_semester = 30  # Ortalama dönem kredisi
+        estimated_semesters = remaining_credits / avg_credits_per_semester if avg_credits_per_semester > 0 else 0
+        
+        return {
+            "total_credits": total_credits,
+            "completed_credits": completed_credits,
+            "remaining_credits": remaining_credits,
+            "completion_rate": round(completion_rate, 2),
+            "required_credits": required_credits,
+            "estimated_semesters_to_graduation": round(estimated_semesters, 1),
+            "on_track": completion_rate >= 75  # %75 üzeri iyi durumda
+        }
+        
+    except Exception as e:
+        logger.error(f"Kredi analiz hatası: {e}")
+        return {"error": str(e)}
+
+
+def _analyze_course_success(transcript: Dict[str, Any], term_courses: Dict[str, Any]) -> Dict[str, Any]:
+    """Ders başarı analizini yapar"""
+    try:
+        # Transkript'ten ders başarı oranları
+        course_success_rates = {}
+        total_courses = 0
+        successful_courses = 0
+        
+        if "academic_records" in transcript:
+            for record in transcript["academic_records"]:
+                if "courses" in record:
+                    for course in record["courses"]:
+                        total_courses += 1
+                        grade = course.get("grade", "")
+                        if grade and grade not in ["F", "FF", "FD", "DD"]:
+                            successful_courses += 1
+        
+        # Mevcut dönem dersleri analizi
+        current_courses = []
+        if "tables" in term_courses:
+            for table in term_courses["tables"]:
+                if "rows" in table:
+                    for row in table["rows"]:
+                        if len(row) >= 4:  # Ders adı, kredi, not, öğretim görevlisi
+                            course_info = {
+                                "name": row[0] if len(row) > 0 else "",
+                                "credits": row[1] if len(row) > 1 else "",
+                                "grade": row[2] if len(row) > 2 else "",
+                                "instructor": row[3] if len(row) > 3 else ""
+                            }
+                            current_courses.append(course_info)
+        
+        success_rate = (successful_courses / total_courses * 100) if total_courses > 0 else 0
+        
+        return {
+            "total_courses_taken": total_courses,
+            "successful_courses": successful_courses,
+            "overall_success_rate": round(success_rate, 2),
+            "current_semester_courses": current_courses,
+            "current_courses_count": len(current_courses),
+            "performance_level": _get_performance_level(success_rate)
+        }
+        
+    except Exception as e:
+        logger.error(f"Ders başarı analiz hatası: {e}")
+        return {"error": str(e)}
+
+
+def _get_performance_level(success_rate: float) -> str:
+    """Başarı oranına göre performans seviyesi belirler"""
+    if success_rate >= 90:
+        return "Mükemmel"
+    elif success_rate >= 80:
+        return "Çok İyi"
+    elif success_rate >= 70:
+        return "İyi"
+    elif success_rate >= 60:
+        return "Orta"
+    else:
+        return "Geliştirilmeli"
+
+
+def _calculate_overall_score(gpa_trend: Dict[str, Any], credit_analysis: Dict[str, Any], course_success: Dict[str, Any]) -> Dict[str, Any]:
+    """Genel performans skorunu hesaplar"""
+    try:
+        score = 0
+        max_score = 100
+        
+        # GPA skoru (40 puan)
+        if "current_gpa" in gpa_trend and not "error" in gpa_trend:
+            gpa = gpa_trend["current_gpa"]
+            gpa_score = min(40, (gpa / 4.0) * 40)
+            score += gpa_score
+        
+        # Kredi tamamlama skoru (30 puan)
+        if "completion_rate" in credit_analysis and not "error" in credit_analysis:
+            completion = credit_analysis["completion_rate"]
+            credit_score = min(30, (completion / 100) * 30)
+            score += credit_score
+        
+        # Ders başarı skoru (30 puan)
+        if "overall_success_rate" in course_success and not "error" in course_success:
+            success = course_success["overall_success_rate"]
+            success_score = min(30, (success / 100) * 30)
+            score += success_score
+        
+        # Performans seviyesi
+        if score >= 85:
+            level = "A+"
+        elif score >= 75:
+            level = "A"
+        elif score >= 65:
+            level = "B+"
+        elif score >= 55:
+            level = "B"
+        elif score >= 45:
+            level = "C+"
+        else:
+            level = "C"
+        
+        return {
+            "total_score": round(score, 1),
+            "max_score": max_score,
+            "percentage": round((score / max_score) * 100, 1),
+            "level": level,
+            "grade": _get_letter_grade(score)
+        }
+        
+    except Exception as e:
+        logger.error(f"Genel skor hesaplama hatası: {e}")
+        return {"error": str(e)}
+
+
+def _get_letter_grade(score: float) -> str:
+    """Sayısal skoru harf notuna çevirir"""
+    if score >= 90:
+        return "AA"
+    elif score >= 80:
+        return "BA"
+    elif score >= 70:
+        return "BB"
+    elif score >= 60:
+        return "CB"
+    elif score >= 50:
+        return "CC"
+    else:
+        return "FF"
+
+
+def _generate_recommendations(gpa_trend: Dict[str, Any], credit_analysis: Dict[str, Any], course_success: Dict[str, Any]) -> List[str]:
+    """Analiz sonuçlarına göre öneriler üretir"""
+    recommendations = []
+    
+    try:
+        # GPA önerileri
+        if "current_gpa" in gpa_trend and not "error" in gpa_trend:
+            current_gpa = gpa_trend["current_gpa"]
+            if current_gpa < 2.0:
+                recommendations.append("GPA'nız 2.0'ın altında. Ders çalışma planınızı gözden geçirin.")
+            elif current_gpa < 2.5:
+                recommendations.append("GPA'nızı 2.5'ın üzerine çıkarmak için ek çaba gösterin.")
+        
+        # Kredi önerileri
+        if "completion_rate" in credit_analysis and not "error" in credit_analysis:
+            completion = credit_analysis["completion_rate"]
+            if completion < 50:
+                recommendations.append("Kredi tamamlama oranınız düşük. Daha fazla ders almayı düşünün.")
+            elif completion > 80:
+                recommendations.append("Kredi tamamlama oranınız iyi. Mezuniyet için planlı ilerleyin.")
+        
+        # Ders başarı önerileri
+        if "overall_success_rate" in course_success and not "error" in course_success:
+            success = course_success["overall_success_rate"]
+            if success < 70:
+                recommendations.append("Ders başarı oranınız düşük. Çalışma yöntemlerinizi gözden geçirin.")
+        
+        # Genel öneriler
+        if not recommendations:
+            recommendations.append("Akademik performansınız iyi durumda. Bu seviyeyi koruyun.")
+        
+        return recommendations
+        
+    except Exception as e:
+        logger.error(f"Öneri üretme hatası: {e}")
+        return ["Analiz sırasında hata oluştu. Lütfen tekrar deneyin."]
+
+
+# =============================================================================
+# PERFORMANS TAKİBİ VE HEDEFLER
+# =============================================================================
+
+def student_obs_get_performance_tracking() -> Dict[str, Any]:
+    """Akademik hedefler ve performans takibi"""
+    if not _student_obs_session or not _student_obs_base_url:
+        return {"error": "Giriş yapılmamış"}
+    
+    try:
+        # Akademik analiz verilerini al
+        analytics = student_obs_get_academic_analytics()
+        if "error" in analytics:
+            return analytics
+        
+        # Performans hedeflerini hesapla
+        performance_goals = _calculate_performance_goals(analytics)
+        
+        # İlerleme durumunu hesapla
+        progress_status = _calculate_progress_status(analytics)
+        
+        # Hedef önerilerini üret
+        goal_recommendations = _generate_goal_recommendations(analytics)
+        
+        return {
+            "success": True,
+            "performance_goals": performance_goals,
+            "progress_status": progress_status,
+            "goal_recommendations": goal_recommendations,
+            "last_updated": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Performans takibi hatası: {e}")
+        return {"error": str(e)}
+
+
+def _calculate_performance_goals(analytics: Dict[str, Any]) -> Dict[str, Any]:
+    """Performans hedeflerini hesaplar"""
+    try:
+        goals = {}
+        
+        # GPA hedefleri
+        if "gpa_trend" in analytics and "analytics" in analytics:
+            gpa_data = analytics["analytics"]["gpa_trend"]
+            if "current_gpa" in gpa_data and not "error" in gpa_data:
+                current_gpa = gpa_data["current_gpa"]
+                
+                # Kısa vadeli hedef (1 dönem)
+                short_term_gpa = min(4.0, current_gpa + 0.3)
+                
+                # Orta vadeli hedef (1 yıl)
+                medium_term_gpa = min(4.0, current_gpa + 0.5)
+                
+                # Uzun vadeli hedef (mezuniyet)
+                long_term_gpa = min(4.0, current_gpa + 0.8)
+                
+                goals["gpa"] = {
+                    "current": current_gpa,
+                    "short_term": round(short_term_gpa, 2),
+                    "medium_term": round(medium_term_gpa, 2),
+                    "long_term": round(long_term_gpa, 2),
+                    "achievable": current_gpa < 4.0
+                }
+        
+        # Kredi hedefleri
+        if "credit_analysis" in analytics and "analytics" in analytics:
+            credit_data = analytics["analytics"]["credit_analysis"]
+            if "completion_rate" in credit_data and not "error" in credit_data:
+                completion = credit_data["completion_rate"]
+                remaining = credit_data.get("remaining_credits", 0)
+                
+                # Dönem kredi hedefi
+                semester_goal = min(30, max(15, remaining / 4))  # Kalan krediyi 4 döneme böl
+                
+                goals["credits"] = {
+                    "current_completion": completion,
+                    "semester_goal": round(semester_goal, 1),
+                    "target_completion": min(100, completion + 25),  # %25 artış hedefi
+                    "graduation_timeline": credit_data.get("estimated_semesters_to_graduation", 0)
+                }
+        
+        # Ders başarı hedefleri
+        if "course_success" in analytics and "analytics" in analytics:
+            success_data = analytics["analytics"]["course_success"]
+            if "overall_success_rate" in success_data and not "error" in success_data:
+                current_success = success_data["overall_success_rate"]
+                
+                goals["course_success"] = {
+                    "current_rate": current_success,
+                    "target_rate": min(100, current_success + 10),  # %10 artış hedefi
+                    "excellent_threshold": 90,
+                    "good_threshold": 80
+                }
+        
+        return goals
+        
+    except Exception as e:
+        logger.error(f"Hedef hesaplama hatası: {e}")
+        return {"error": str(e)}
+
+
+def _calculate_progress_status(analytics: Dict[str, Any]) -> Dict[str, Any]:
+    """İlerleme durumunu hesaplar"""
+    try:
+        status = {
+            "overall_progress": 0,
+            "gpa_progress": 0,
+            "credit_progress": 0,
+            "success_progress": 0,
+            "status_level": "Unknown"
+        }
+        
+        if "analytics" not in analytics:
+            return status
+        
+        analytics_data = analytics["analytics"]
+        
+        # GPA ilerlemesi
+        if "gpa_trend" in analytics_data and not "error" in analytics_data["gpa_trend"]:
+            gpa_data = analytics_data["gpa_trend"]
+            if "current_gpa" in gpa_data:
+                current_gpa = gpa_data["current_gpa"]
+                gpa_progress = (current_gpa / 4.0) * 100
+                status["gpa_progress"] = round(gpa_progress, 1)
+        
+        # Kredi ilerlemesi
+        if "credit_analysis" in analytics_data and not "error" in analytics_data["credit_analysis"]:
+            credit_data = analytics_data["credit_analysis"]
+            if "completion_rate" in credit_data:
+                status["credit_progress"] = credit_data["completion_rate"]
+        
+        # Ders başarı ilerlemesi
+        if "course_success" in analytics_data and not "error" in analytics_data["course_success"]:
+            success_data = analytics_data["course_success"]
+            if "overall_success_rate" in success_data:
+                status["success_progress"] = success_data["overall_success_rate"]
+        
+        # Genel ilerleme (ortalama)
+        progress_values = [status["gpa_progress"], status["credit_progress"], status["success_progress"]]
+        valid_values = [v for v in progress_values if v > 0]
+        
+        if valid_values:
+            status["overall_progress"] = round(sum(valid_values) / len(valid_values), 1)
+        
+        # İlerleme seviyesi
+        overall = status["overall_progress"]
+        if overall >= 90:
+            status["status_level"] = "Mükemmel"
+        elif overall >= 80:
+            status["status_level"] = "Çok İyi"
+        elif overall >= 70:
+            status["status_level"] = "İyi"
+        elif overall >= 60:
+            status["status_level"] = "Orta"
+        elif overall >= 50:
+            status["status_level"] = "Geliştirilmeli"
+        else:
+            status["status_level"] = "Kritik"
+        
+        return status
+        
+    except Exception as e:
+        logger.error(f"İlerleme durumu hesaplama hatası: {e}")
+        return {"error": str(e)}
+
+
+def _generate_goal_recommendations(analytics: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Hedef önerilerini üretir"""
+    recommendations = []
+    
+    try:
+        if "analytics" not in analytics:
+            return recommendations
+        
+        analytics_data = analytics["analytics"]
+        
+        # GPA hedefleri
+        if "gpa_trend" in analytics_data and not "error" in analytics_data["gpa_trend"]:
+            gpa_data = analytics_data["gpa_trend"]
+            if "current_gpa" in gpa_data:
+                current_gpa = gpa_data["current_gpa"]
+                
+                if current_gpa < 2.0:
+                    recommendations.append({
+                        "category": "GPA",
+                        "priority": "Yüksek",
+                        "goal": "GPA'yı 2.0'ın üzerine çıkarın",
+                        "timeline": "1 dönem",
+                        "actions": [
+                            "Ders çalışma planınızı gözden geçirin",
+                            "Öğretim görevlileriyle görüşün",
+                            "Ek kaynaklar kullanın"
+                        ]
+                    })
+                elif current_gpa < 2.5:
+                    recommendations.append({
+                        "category": "GPA",
+                        "priority": "Orta",
+                        "goal": "GPA'yı 2.5'ın üzerine çıkarın",
+                        "timeline": "2 dönem",
+                        "actions": [
+                            "Zayıf olduğunuz derslere odaklanın",
+                            "Çalışma grupları oluşturun"
+                        ]
+                    })
+        
+        # Kredi hedefleri
+        if "credit_analysis" in analytics_data and not "error" in analytics_data["credit_analysis"]:
+            credit_data = analytics_data["credit_analysis"]
+            if "completion_rate" in credit_data:
+                completion = credit_data["completion_rate"]
+                
+                if completion < 50:
+                    recommendations.append({
+                        "category": "Kredi",
+                        "priority": "Yüksek",
+                        "goal": "Kredi tamamlama oranını artırın",
+                        "timeline": "2 dönem",
+                        "actions": [
+                            "Daha fazla ders almayı düşünün",
+                            "Yaz okulu seçeneklerini değerlendirin"
+                        ]
+                    })
+        
+        # Ders başarı hedefleri
+        if "course_success" in analytics_data and not "error" in analytics_data["course_success"]:
+            success_data = analytics_data["course_success"]
+            if "overall_success_rate" in success_data:
+                success_rate = success_data["overall_success_rate"]
+                
+                if success_rate < 70:
+                    recommendations.append({
+                        "category": "Ders Başarısı",
+                        "priority": "Yüksek",
+                        "goal": "Ders başarı oranını %80'in üzerine çıkarın",
+                        "timeline": "1 dönem",
+                        "actions": [
+                            "Çalışma yöntemlerinizi gözden geçirin",
+                            "Ödev ve projelere daha fazla zaman ayırın",
+                            "Öğretim görevlileriyle düzenli görüşün"
+                        ]
+                    })
+        
+        # Genel hedefler
+        if not recommendations:
+            recommendations.append({
+                "category": "Genel",
+                "priority": "Düşük",
+                "goal": "Mevcut performansınızı koruyun",
+                "timeline": "Sürekli",
+                "actions": [
+                    "Düzenli çalışma alışkanlığınızı sürdürün",
+                    "Akademik hedeflerinizi gözden geçirin"
+                ]
+            })
+        
+        return recommendations
+        
+    except Exception as e:
+        logger.error(f"Hedef önerisi üretme hatası: {e}")
+        return [{
+            "category": "Hata",
+            "priority": "Bilinmiyor",
+            "goal": "Analiz sırasında hata oluştu",
+            "timeline": "Bilinmiyor",
+            "actions": ["Lütfen tekrar deneyin"]
+        }]
+
+
+# =============================================================================
+# DERS SEÇİM ASISTANI
+# =============================================================================
+
+def student_obs_get_course_advisor() -> Dict[str, Any]:
+    """Akademik danışmanlık ve ders seçim önerileri"""
+    if not _student_obs_session or not _student_obs_base_url:
+        return {"error": "Giriş yapılmamış"}
+    
+    try:
+        # Mevcut ders bilgilerini al
+        current_courses = student_obs_get_term_courses()
+        if "error" in current_courses:
+            return current_courses
+        
+        # Transkript bilgilerini al
+        transcript = student_obs_get_transcript()
+        if "error" in transcript:
+            return transcript
+        
+        # Öğrenci bilgilerini al
+        student_info = student_obs_get_student_info()
+        if "error" in student_info:
+            return student_info
+        
+        # Ders seçim analizini yap
+        course_analysis = _analyze_course_selection(current_courses, transcript, student_info)
+        
+        # Önerileri üret
+        recommendations = _generate_course_recommendations(course_analysis)
+        
+        return {
+            "success": True,
+            "course_analysis": course_analysis,
+            "recommendations": recommendations,
+            "last_updated": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Ders seçim asistanı hatası: {e}")
+        return {"error": str(e)}
+
+
+def _analyze_course_selection(current_courses: Dict[str, Any], transcript: Dict[str, Any], student_info: Dict[str, Any]) -> Dict[str, Any]:
+    """Ders seçim analizini yapar"""
+    try:
+        analysis = {
+            "current_semester": {},
+            "prerequisites": {},
+            "credit_analysis": {},
+            "conflicts": {},
+            "graduation_requirements": {}
+        }
+        
+        # Mevcut dönem analizi
+        if "tables" in current_courses:
+            current_semester_courses = []
+            total_credits = 0
+            
+            for table in current_courses["tables"]:
+                if "rows" in table:
+                    for row in table["rows"]:
+                        if len(row) >= 4:
+                            course = {
+                                "name": row[0] if len(row) > 0 else "",
+                                "credits": row[1] if len(row) > 1 else "",
+                                "grade": row[2] if len(row) > 2 else "",
+                                "instructor": row[3] if len(row) > 3 else ""
+                            }
+                            current_semester_courses.append(course)
+                            
+                            # Kredi hesaplama
+                            try:
+                                if course["credits"]:
+                                    credits = float(course["credits"].replace(",", "."))
+                                    total_credits += credits
+                            except (ValueError, AttributeError):
+                                pass
+            
+            analysis["current_semester"] = {
+                "courses": current_semester_courses,
+                "total_courses": len(current_semester_courses),
+                "total_credits": total_credits,
+                "is_balanced": 15 <= total_credits <= 30  # Dengeli kredi yükü
+            }
+        
+        # Ön koşul analizi
+        analysis["prerequisites"] = _analyze_prerequisites(current_semester_courses, transcript)
+        
+        # Kredi analizi
+        analysis["credit_analysis"] = _analyze_credit_requirements(transcript, student_info)
+        
+        # Ders çakışma kontrolü
+        analysis["conflicts"] = _check_course_conflicts(current_semester_courses)
+        
+        # Mezuniyet gereksinimleri
+        analysis["graduation_requirements"] = _analyze_graduation_requirements(transcript, student_info)
+        
+        return analysis
+        
+    except Exception as e:
+        logger.error(f"Ders seçim analiz hatası: {e}")
+        return {"error": str(e)}
+
+
+def _analyze_prerequisites(current_courses: List[Dict[str, Any]], transcript: Dict[str, Any]) -> Dict[str, Any]:
+    """Ön koşul kontrolünü yapar"""
+    try:
+        prerequisite_analysis = {
+            "met_prerequisites": [],
+            "missing_prerequisites": [],
+            "warnings": []
+        }
+        
+        # Basit ön koşul kontrolü (gerçek sistemde daha detaylı olabilir)
+        completed_courses = set()
+        
+        if "academic_records" in transcript:
+            for record in transcript["academic_records"]:
+                if "courses" in record:
+                    for course in record["courses"]:
+                        course_name = course.get("name", "").lower()
+                        grade = course.get("grade", "")
+                        
+                        # Başarılı tamamlanan dersler
+                        if grade and grade not in ["F", "FF", "FD", "DD"]:
+                            completed_courses.add(course_name)
+        
+        # Mevcut dersler için ön koşul kontrolü
+        for course in current_courses:
+            course_name = course.get("name", "").lower()
+            
+            # Temel dersler için ön koşul kontrolü
+            if any(keyword in course_name for keyword in ["ii", "2", "advanced", "ileri"]):
+                # İkinci seviye dersler için temel ders kontrolü
+                base_course = course_name.replace("ii", "i").replace("2", "1").replace("advanced", "basic")
+                
+                if base_course in completed_courses:
+                    prerequisite_analysis["met_prerequisites"].append({
+                        "course": course["name"],
+                        "prerequisite": base_course,
+                        "status": "Met"
+                    })
+                else:
+                    prerequisite_analysis["missing_prerequisites"].append({
+                        "course": course["name"],
+                        "prerequisite": base_course,
+                        "status": "Missing"
+                    })
+                    
+                    prerequisite_analysis["warnings"].append(
+                        f"{course['name']} dersi için {base_course} ön koşulu eksik"
+                    )
+            else:
+                # Temel dersler için ön koşul yok
+                prerequisite_analysis["met_prerequisites"].append({
+                    "course": course["name"],
+                    "prerequisite": "None",
+                    "status": "No prerequisite"
+                })
+        
+        return prerequisite_analysis
+        
+    except Exception as e:
+        logger.error(f"Ön koşul analiz hatası: {e}")
+        return {"error": str(e)}
+
+
+def _analyze_credit_requirements(transcript: Dict[str, Any], student_info: Dict[str, Any]) -> Dict[str, Any]:
+    """Kredi gereksinimlerini analiz eder"""
+    try:
+        credit_analysis = {
+            "current_credits": 0,
+            "required_credits": 240,  # Standart lisans programı
+            "remaining_credits": 0,
+            "semester_recommendation": 0,
+            "graduation_timeline": 0
+        }
+        
+        # Mevcut kredileri hesapla
+        if "academic_records" in transcript:
+            for record in transcript["academic_records"]:
+                if "total_credits" in record and record["total_credits"]:
+                    try:
+                        credits = float(record["total_credits"].replace(",", "."))
+                        credit_analysis["current_credits"] = max(credit_analysis["current_credits"], credits)
+                    except (ValueError, AttributeError):
+                        continue
+        
+        # Kalan kredileri hesapla
+        credit_analysis["remaining_credits"] = max(0, credit_analysis["required_credits"] - credit_analysis["current_credits"])
+        
+        # Dönem kredi önerisi
+        if credit_analysis["remaining_credits"] > 0:
+            # Kalan krediyi 4 döneme böl (2 yıl)
+            credit_analysis["semester_recommendation"] = min(30, max(15, credit_analysis["remaining_credits"] / 4))
+            credit_analysis["graduation_timeline"] = credit_analysis["remaining_credits"] / credit_analysis["semester_recommendation"]
+        
+        return credit_analysis
+        
+    except Exception as e:
+        logger.error(f"Kredi gereksinim analiz hatası: {e}")
+        return {"error": str(e)}
+
+
+def _check_course_conflicts(current_courses: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Ders çakışmalarını kontrol eder"""
+    try:
+        conflicts = {
+            "schedule_conflicts": [],
+            "workload_conflicts": [],
+            "level_conflicts": []
+        }
+        
+        # Ders seviyesi kontrolü
+        course_levels = {}
+        for course in current_courses:
+            course_name = course.get("name", "").lower()
+            
+            # Ders seviyesini belirle
+            if any(keyword in course_name for keyword in ["i", "1", "basic", "temel"]):
+                level = "Basic"
+            elif any(keyword in course_name for keyword in ["ii", "2", "intermediate", "orta"]):
+                level = "Intermediate"
+            elif any(keyword in course_name for keyword in ["iii", "3", "advanced", "ileri"]):
+                level = "Advanced"
+            else:
+                level = "Unknown"
+            
+            if level in course_levels:
+                course_levels[level].append(course["name"])
+            else:
+                course_levels[level] = [course["name"]]
+        
+        # Seviye dengesizliği kontrolü
+        for level, courses in course_levels.items():
+            if len(courses) > 3:  # Aynı seviyede çok fazla ders
+                conflicts["level_conflicts"].append({
+                    "type": "Too many courses at same level",
+                    "level": level,
+                    "courses": courses,
+                    "recommendation": f"{level} seviyesinde ders sayısını azaltın"
+                })
+        
+        # İş yükü kontrolü
+        total_credits = sum(
+            float(course.get("credits", "0").replace(",", ".")) 
+            for course in current_courses 
+            if course.get("credits")
+        )
+        
+        if total_credits > 30:
+            conflicts["workload_conflicts"].append({
+                "type": "High credit load",
+                "current_credits": total_credits,
+                "recommendation": "Kredi yükünü azaltmayı düşünün"
+            })
+        elif total_credits < 15:
+            conflicts["workload_conflicts"].append({
+                "type": "Low credit load",
+                "current_credits": total_credits,
+                "recommendation": "Daha fazla ders almayı düşünün"
+            })
+        
+        return conflicts
+        
+    except Exception as e:
+        logger.error(f"Çakışma kontrol hatası: {e}")
+        return {"error": str(e)}
+
+
+def _analyze_graduation_requirements(transcript: Dict[str, Any], student_info: Dict[str, Any]) -> Dict[str, Any]:
+    """Mezuniyet gereksinimlerini analiz eder"""
+    try:
+        graduation_requirements = {
+            "core_courses": {"required": 0, "completed": 0, "remaining": 0},
+            "elective_courses": {"required": 0, "completed": 0, "remaining": 0},
+            "total_credits": {"required": 240, "completed": 0, "remaining": 0},
+            "gpa_requirement": {"required": 2.0, "current": 0, "met": False},
+            "graduation_status": "Unknown"
+        }
+        
+        # Mevcut kredileri hesapla
+        if "academic_records" in transcript:
+            for record in transcript["academic_records"]:
+                if "total_credits" in record and record["total_credits"]:
+                    try:
+                        credits = float(record["total_credits"].replace(",", "."))
+                        graduation_requirements["total_credits"]["completed"] = max(
+                            graduation_requirements["total_credits"]["completed"], 
+                            credits
+                        )
+                    except (ValueError, AttributeError):
+                        continue
+                
+                # GPA hesaplama
+                if "gpa" in record and record["gpa"]:
+                    try:
+                        gpa = float(record["gpa"].replace(",", "."))
+                        graduation_requirements["gpa_requirement"]["current"] = gpa
+                        graduation_requirements["gpa_requirement"]["met"] = gpa >= 2.0
+                    except (ValueError, AttributeError):
+                        continue
+        
+        # Kalan kredileri hesapla
+        graduation_requirements["total_credits"]["remaining"] = max(
+            0, 
+            graduation_requirements["total_credits"]["required"] - graduation_requirements["total_credits"]["completed"]
+        )
+        
+        # Mezuniyet durumu
+        total_met = graduation_requirements["gpa_requirement"]["met"]
+        credits_met = graduation_requirements["total_credits"]["remaining"] <= 0
+        
+        if total_met and credits_met:
+            graduation_requirements["graduation_status"] = "Eligible"
+        elif credits_met:
+            graduation_requirements["graduation_status"] = "GPA requirement not met"
+        elif total_met:
+            graduation_requirements["graduation_status"] = "Credit requirement not met"
+        else:
+            graduation_requirements["graduation_status"] = "Multiple requirements not met"
+        
+        return graduation_requirements
+        
+    except Exception as e:
+        logger.error(f"Mezuniyet gereksinim analiz hatası: {e}")
+        return {"error": str(e)}
+
+
+def _generate_course_recommendations(course_analysis: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Ders seçim önerilerini üretir"""
+    recommendations = []
+    
+    try:
+        # Ön koşul uyarıları
+        if "prerequisites" in course_analysis and "warnings" in course_analysis["prerequisites"]:
+            for warning in course_analysis["prerequisites"]["warnings"]:
+                recommendations.append({
+                    "type": "Prerequisite Warning",
+                    "priority": "High",
+                    "message": warning,
+                    "action": "Ön koşul dersleri tamamlayın"
+                })
+        
+        # Kredi yükü önerileri
+        if "current_semester" in course_analysis:
+            current = course_analysis["current_semester"]
+            if not current.get("is_balanced", True):
+                if current.get("total_credits", 0) > 30:
+                    recommendations.append({
+                        "type": "Credit Load",
+                        "priority": "Medium",
+                        "message": "Kredi yükünüz yüksek",
+                        "action": "Bazı dersleri sonraki döneme bırakın"
+                    })
+                elif current.get("total_credits", 0) < 15:
+                    recommendations.append({
+                        "type": "Credit Load",
+                        "priority": "Medium",
+                        "message": "Kredi yükünüz düşük",
+                        "action": "Daha fazla ders almayı düşünün"
+                    })
+        
+        # Çakışma önerileri
+        if "conflicts" in course_analysis:
+            conflicts = course_analysis["conflicts"]
+            
+            for conflict_type, conflict_list in conflicts.items():
+                for conflict in conflict_list:
+                    recommendations.append({
+                        "type": f"Conflict: {conflict_type}",
+                        "priority": "Medium",
+                        "message": conflict.get("type", ""),
+                        "action": conflict.get("recommendation", "")
+                    })
+        
+        # Mezuniyet önerileri
+        if "graduation_requirements" in course_analysis:
+            grad_req = course_analysis["graduation_requirements"]
+            
+            if grad_req.get("graduation_status") == "GPA requirement not met":
+                recommendations.append({
+                    "type": "Graduation",
+                    "priority": "High",
+                    "message": "GPA gereksinimi karşılanmıyor",
+                    "action": "GPA'nızı 2.0'ın üzerine çıkarın"
+                })
+            
+            if grad_req.get("total_credits", {}).get("remaining", 0) > 0:
+                remaining = grad_req["total_credits"]["remaining"]
+                recommendations.append({
+                    "type": "Graduation",
+                    "priority": "Medium",
+                    "message": f"{remaining} kredi eksik",
+                    "action": "Eksik kredileri tamamlayın"
+                })
+        
+        # Genel öneriler
+        if not recommendations:
+            recommendations.append({
+                "type": "General",
+                "priority": "Low",
+                "message": "Ders seçiminiz uygun",
+                "action": "Mevcut planınızı sürdürün"
+            })
+        
+        return recommendations
+        
+    except Exception as e:
+        logger.error(f"Öneri üretme hatası: {e}")
+        return [{
+            "type": "Error",
+            "priority": "Unknown",
+            "message": "Analiz sırasında hata oluştu",
+            "action": "Lütfen tekrar deneyin"
+        }]
+
+
+# =============================================================================
+# BİLDİRİM VE UYARI SİSTEMİ
+# =============================================================================
+
+def student_obs_get_notifications() -> Dict[str, Any]:
+    """Önemli bildirimleri ve uyarıları listeler"""
+    if not _student_obs_session or not _student_obs_base_url:
+        return {"error": "Giriş yapılmamış"}
+    
+    try:
+        # Çeşitli veri kaynaklarından bildirimleri topla
+        notifications = []
+        
+        # Akademik uyarılar
+        academic_warnings = _get_academic_warnings()
+        notifications.extend(academic_warnings)
+        
+        # Devamsızlık uyarıları
+        attendance_warnings = _get_attendance_warnings()
+        notifications.extend(attendance_warnings)
+        
+        # Mali uyarılar
+        financial_warnings = _get_financial_warnings()
+        notifications.extend(financial_warnings)
+        
+        # Sistem uyarıları
+        system_warnings = _get_system_warnings()
+        notifications.extend(system_warnings)
+        
+        # Bildirimleri öncelik sırasına göre sırala
+        notifications.sort(key=lambda x: _get_priority_score(x.get("priority", "Low")), reverse=True)
+        
+        # Özet istatistikler
+        summary = {
+            "total_notifications": len(notifications),
+            "high_priority": len([n for n in notifications if n.get("priority") == "High"]),
+            "medium_priority": len([n for n in notifications if n.get("priority") == "Medium"]),
+            "low_priority": len([n for n in notifications if n.get("priority") == "Low"])
+        }
+        
+        return {
+            "success": True,
+            "notifications": notifications,
+            "summary": summary,
+            "last_updated": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Bildirim sistemi hatası: {e}")
+        return {"error": str(e)}
+
+
+def _get_academic_warnings() -> List[Dict[str, Any]]:
+    """Akademik uyarıları getirir"""
+    warnings = []
+    
+    try:
+        # Transkript bilgilerini al
+        transcript = student_obs_get_transcript()
+        if "error" in transcript:
+            return warnings
+        
+        # Düşük not uyarıları
+        if "academic_records" in transcript:
+            for record in transcript["academic_records"]:
+                if "courses" in record:
+                    for course in record["courses"]:
+                        grade = course.get("grade", "")
+                        course_name = course.get("name", "")
+                        
+                        if grade in ["F", "FF", "FD", "DD"]:
+                            warnings.append({
+                                "id": f"academic_{len(warnings)}",
+                                "type": "Academic Warning",
+                                "category": "Low Grade",
+                                "priority": "High",
+                                "title": f"Düşük Not: {course_name}",
+                                "message": f"{course_name} dersinde {grade} notu aldınız",
+                                "details": {
+                                    "course": course_name,
+                                    "grade": grade,
+                                    "semester": record.get("class_level", ""),
+                                    "year": record.get("year", "")
+                                },
+                                "action_required": True,
+                                "action_text": "Ders tekrarı veya ek çalışma gerekli",
+                                "timestamp": datetime.now().isoformat()
+                            })
+        
+        # GPA uyarıları
+        if "academic_records" in transcript:
+            for record in transcript["academic_records"]:
+                if "gpa" in record and record["gpa"]:
+                    try:
+                        gpa = float(record["gpa"].replace(",", "."))
+                        if gpa < 2.0:
+                            warnings.append({
+                                "id": f"academic_{len(warnings)}",
+                                "type": "Academic Warning",
+                                "category": "Low GPA",
+                                "priority": "High",
+                                "title": "Düşük GPA Uyarısı",
+                                "message": f"GPA'nız {gpa} ile 2.0'ın altında",
+                                "details": {
+                                    "current_gpa": gpa,
+                                    "required_gpa": 2.0,
+                                    "semester": record.get("class_level", ""),
+                                    "year": record.get("year", "")
+                                },
+                                "action_required": True,
+                                "action_text": "Akademik danışmanla görüşün",
+                                "timestamp": datetime.now().isoformat()
+                            })
+                    except (ValueError, AttributeError):
+                        continue
+        
+        return warnings
+        
+    except Exception as e:
+        logger.error(f"Akademik uyarı hatası: {e}")
+        return []
+
+
+def _get_attendance_warnings() -> List[Dict[str, Any]]:
+    """Devamsızlık uyarılarını getirir"""
+    warnings = []
+    
+    try:
+        # Devamsızlık bilgilerini al
+        attendance = student_obs_get_attendance()
+        if "error" in attendance:
+            return warnings
+        
+        # Devamsızlık tablolarını analiz et
+        if "tables" in attendance:
+            for table in attendance["tables"]:
+                if "rows" in table:
+                    for row in table["rows"]:
+                        if len(row) >= 3:  # Ders adı, devamsızlık sayısı, limit
+                            course_name = row[0] if len(row) > 0 else ""
+                            absences = row[1] if len(row) > 1 else ""
+                            limit = row[2] if len(row) > 2 else ""
+                            
+                            try:
+                                absences_count = int(absences) if absences.isdigit() else 0
+                                limit_count = int(limit) if limit.isdigit() else 10
+                                
+                                # Devamsızlık oranı hesapla
+                                if limit_count > 0:
+                                    absence_rate = (absences_count / limit_count) * 100
+                                    
+                                    if absence_rate >= 80:
+                                        priority = "High"
+                                        action_required = True
+                                    elif absence_rate >= 60:
+                                        priority = "Medium"
+                                        action_required = True
+                                    else:
+                                        priority = "Low"
+                                        action_required = False
+                                    
+                                    if absence_rate >= 60:
+                                        warnings.append({
+                                            "id": f"attendance_{len(warnings)}",
+                                            "type": "Attendance Warning",
+                                            "category": "High Absence Rate",
+                                            "priority": priority,
+                                            "title": f"Devamsızlık Uyarısı: {course_name}",
+                                            "message": f"{course_name} dersinde %{absence_rate:.1f} devamsızlık oranı",
+                                            "details": {
+                                                "course": course_name,
+                                                "absences": absences_count,
+                                                "limit": limit_count,
+                                                "rate": round(absence_rate, 1)
+                                            },
+                                            "action_required": action_required,
+                                            "action_text": "Devamsızlık oranınızı düşürün",
+                                            "timestamp": datetime.now().isoformat()
+                                        })
+                            except (ValueError, AttributeError):
+                                continue
+        
+        return warnings
+        
+    except Exception as e:
+        logger.error(f"Devamsızlık uyarı hatası: {e}")
+        return []
+
+
+def _get_financial_warnings() -> List[Dict[str, Any]]:
+    """Mali uyarıları getirir"""
+    warnings = []
+    
+    try:
+        # Harç bilgilerini al
+        fees = student_obs_get_fees()
+        if "error" in fees:
+            return warnings
+        
+        # Harç tablolarını analiz et
+        if "tables" in fees:
+            for table in fees["tables"]:
+                if "rows" in table:
+                    for row in table["rows"]:
+                        if len(row) >= 4:  # Dönem, tutar, ödenen, kalan
+                            semester = row[0] if len(row) > 0 else ""
+                            amount = row[1] if len(row) > 1 else ""
+                            paid = row[2] if len(row) > 2 else ""
+                            remaining = row[3] if len(row) > 3 else ""
+                            
+                            try:
+                                # Kalan borç kontrolü
+                                if remaining and remaining != "0" and remaining != "0,00":
+                                    remaining_amount = float(remaining.replace(",", "."))
+                                    
+                                    if remaining_amount > 0:
+                                        priority = "Medium" if remaining_amount < 1000 else "High"
+                                        
+                                        warnings.append({
+                                            "id": f"financial_{len(warnings)}",
+                                            "type": "Financial Warning",
+                                            "category": "Outstanding Balance",
+                                            "priority": priority,
+                                            "title": f"Harç Borcu: {semester}",
+                                            "message": f"{semester} dönemi için {remaining_amount:.2f} TL borç",
+                                            "details": {
+                                                "semester": semester,
+                                                "total_amount": amount,
+                                                "paid_amount": paid,
+                                                "remaining_amount": remaining_amount
+                                            },
+                                            "action_required": True,
+                                            "action_text": "Harç borcunuzu ödeyin",
+                                            "timestamp": datetime.now().isoformat()
+                                        })
+                            except (ValueError, AttributeError):
+                                continue
+        
+        # Kütüphane borçları
+        library = student_obs_get_library()
+        if "error" not in library and "tables" in library:
+            for table in library["tables"]:
+                if "rows" in table:
+                    for row in table["rows"]:
+                        if len(row) >= 2:  # Malzeme, borç
+                            item = row[0] if len(row) > 0 else ""
+                            debt = row[1] if len(row) > 1 else ""
+                            
+                            if debt and debt != "0" and debt != "0,00":
+                                try:
+                                    debt_amount = float(debt.replace(",", "."))
+                                    if debt_amount > 0:
+                                        warnings.append({
+                                            "id": f"financial_{len(warnings)}",
+                                            "type": "Financial Warning",
+                                            "category": "Library Debt",
+                                            "priority": "Low",
+                                            "title": f"Kütüphane Borcu: {item}",
+                                            "message": f"{item} için {debt_amount:.2f} TL borç",
+                                            "details": {
+                                                "item": item,
+                                                "debt_amount": debt_amount
+                                            },
+                                            "action_required": True,
+                                            "action_text": "Kütüphane borcunuzu ödeyin",
+                                            "timestamp": datetime.now().isoformat()
+                                        })
+                                except (ValueError, AttributeError):
+                                    continue
+        
+        return warnings
+        
+    except Exception as e:
+        logger.error(f"Mali uyarı hatası: {e}")
+        return []
+
+
+def _get_system_warnings() -> List[Dict[str, Any]]:
+    """Sistem uyarılarını getirir"""
+    warnings = []
+    
+    try:
+        # Öğrenci bilgilerini al
+        student_info = student_obs_get_student_info()
+        if "error" in student_info:
+            return warnings
+        
+        # Öğrenci durumu kontrolü
+        if "status" in student_info:
+            status = student_info["status"]
+            if status and "OKUYAN" not in status.upper():
+                warnings.append({
+                    "id": f"system_{len(warnings)}",
+                    "type": "System Warning",
+                    "category": "Student Status",
+                    "priority": "High",
+                    "title": "Öğrenci Durumu Uyarısı",
+                    "message": f"Öğrenci durumunuz: {status}",
+                    "details": {
+                        "current_status": status,
+                        "expected_status": "OKUYAN"
+                    },
+                    "action_required": True,
+                    "action_text": "Öğrenci işleri ile iletişime geçin",
+                    "timestamp": datetime.now().isoformat()
+                })
+        
+        # E-posta kontrolü
+        if "email" in student_info:
+            email = student_info["email"]
+            if not email or "@" not in email:
+                warnings.append({
+                    "id": f"system_{len(warnings)}",
+                    "type": "System Warning",
+                    "category": "Contact Information",
+                    "priority": "Medium",
+                    "title": "E-posta Adresi Eksik",
+                    "message": "E-posta adresiniz güncel değil",
+                    "details": {
+                        "current_email": email or "Yok"
+                    },
+                    "action_required": True,
+                    "action_text": "E-posta adresinizi güncelleyin",
+                    "timestamp": datetime.now().isoformat()
+                })
+        
+        return warnings
+        
+    except Exception as e:
+        logger.error(f"Sistem uyarı hatası: {e}")
+        return []
+
+
+def _get_priority_score(priority: str) -> int:
+    """Öncelik skorunu hesaplar"""
+    priority_scores = {
+        "High": 3,
+        "Medium": 2,
+        "Low": 1
+    }
+    return priority_scores.get(priority, 0)
+
+
+def student_obs_get_notification_settings() -> Dict[str, Any]:
+    """Bildirim ayarlarını getirir"""
+    try:
+        # Varsayılan bildirim ayarları
+        default_settings = {
+            "academic_warnings": {
+                "enabled": True,
+                "priority_threshold": "Low",  # Low, Medium, High
+                "email_notifications": False,
+                "push_notifications": False
+            },
+            "attendance_warnings": {
+                "enabled": True,
+                "absence_threshold": 60,  # %60 devamsızlık oranı
+                "email_notifications": False,
+                "push_notifications": False
+            },
+            "financial_warnings": {
+                "enabled": True,
+                "debt_threshold": 100,  # 100 TL üzeri borç
+                "email_notifications": True,
+                "push_notifications": False
+            },
+            "system_warnings": {
+                "enabled": True,
+                "priority_threshold": "Medium",
+                "email_notifications": True,
+                "push_notifications": False
+            },
+            "general_settings": {
+                "notification_frequency": "daily",  # daily, weekly, monthly
+                "quiet_hours": {
+                    "start": "22:00",
+                    "end": "08:00"
+                },
+                "language": "tr"
+            }
+        }
+        
+        return {
+            "success": True,
+            "settings": default_settings,
+            "last_updated": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Bildirim ayarları hatası: {e}")
+        return {"error": str(e)}
+
+
+def student_obs_mark_notification_read(notification_id: str) -> Dict[str, Any]:
+    """Bildirimi okundu olarak işaretler"""
+    try:
+        # Bu fonksiyon gerçek uygulamada veritabanında okundu durumunu günceller
+        # Şimdilik sadece başarı mesajı döndürüyoruz
+        
+        return {
+            "success": True,
+            "message": f"Bildirim {notification_id} okundu olarak işaretlendi",
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Bildirim işaretleme hatası: {e}")
+        return {"error": str(e)}
+
+
+# =============================================================================
+# RAPORLAMA VE EXPORT
+# =============================================================================
+
+def student_obs_export_data(format: str = "json", data_type: str = "all") -> Dict[str, Any]:
+    """Verileri farklı formatlarda export eder"""
+    if not _student_obs_session or not _student_obs_base_url:
+        return {"error": "Giriş yapılmamış"}
+    
+    try:
+        # Export formatını kontrol et
+        if format.lower() not in ["json", "csv", "pdf", "excel"]:
+            return {"error": "Desteklenmeyen format. Kullanılabilir: json, csv, pdf, excel"}
+        
+        # Veri tipini kontrol et
+        if data_type.lower() not in ["all", "academic", "financial", "personal", "schedule"]:
+            return {"error": "Desteklenmeyen veri tipi. Kullanılabilir: all, academic, financial, personal, schedule"}
+        
+        # Verileri topla
+        export_data = _collect_export_data(data_type)
+        if "error" in export_data:
+            return export_data
+        
+        # Format'a göre export yap
+        if format.lower() == "json":
+            result = _export_to_json(export_data)
+        elif format.lower() == "csv":
+            result = _export_to_csv(export_data)
+        elif format.lower() == "pdf":
+            result = _export_to_pdf(export_data)
+        elif format.lower() == "excel":
+            result = _export_to_excel(export_data)
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Veri export hatası: {e}")
+        return {"error": str(e)}
+
+
+def _collect_export_data(data_type: str) -> Dict[str, Any]:
+    """Export için verileri toplar"""
+    try:
+        export_data = {
+            "export_info": {
+                "timestamp": datetime.now().isoformat(),
+                "data_type": data_type,
+                "student_id": None
+            },
+            "data": {}
+        }
+        
+        # Öğrenci bilgilerini al
+        student_info = student_obs_get_student_info()
+        if "error" not in student_info:
+            export_data["export_info"]["student_id"] = student_info.get("student_id", "Unknown")
+            
+            if data_type in ["all", "personal"]:
+                export_data["data"]["personal_info"] = student_info
+        
+        # Akademik veriler
+        if data_type in ["all", "academic"]:
+            # Transkript
+            transcript = student_obs_get_transcript()
+            if "error" not in transcript:
+                export_data["data"]["transcript"] = transcript
+            
+            # Dönem dersleri
+            term_courses = student_obs_get_term_courses()
+            if "error" not in term_courses:
+                export_data["data"]["term_courses"] = term_courses
+            
+            # Akademik analiz
+            analytics = student_obs_get_academic_analytics()
+            if "error" not in analytics:
+                export_data["data"]["academic_analytics"] = analytics
+        
+        # Mali veriler
+        if data_type in ["all", "financial"]:
+            # Harç bilgileri
+            fees = student_obs_get_fees()
+            if "error" not in fees:
+                export_data["data"]["fees"] = fees
+            
+            # Kütüphane borçları
+            library = student_obs_get_library()
+            if "error" not in library:
+                export_data["data"]["library"] = library
+        
+        # Program verileri
+        if data_type in ["all", "schedule"]:
+            # Haftalık program
+            schedule = student_obs_get_weekly_schedule()
+            if "error" not in schedule:
+                export_data["data"]["weekly_schedule"] = schedule
+            
+            # Devamsızlık
+            attendance = student_obs_get_attendance()
+            if "error" not in attendance:
+                export_data["data"]["attendance"] = attendance
+        
+        return export_data
+        
+    except Exception as e:
+        logger.error(f"Veri toplama hatası: {e}")
+        return {"error": str(e)}
+
+
+def _export_to_json(export_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Verileri JSON formatında export eder"""
+    try:
+        import json
+        
+        # JSON string'e çevir
+        json_string = json.dumps(export_data, indent=2, ensure_ascii=False, default=str)
+        
+        # Dosya adı oluştur
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"student_data_{timestamp}.json"
+        
+        return {
+            "success": True,
+            "format": "json",
+            "filename": filename,
+            "data": json_string,
+            "size_bytes": len(json_string.encode('utf-8')),
+            "download_ready": True
+        }
+        
+    except Exception as e:
+        logger.error(f"JSON export hatası: {e}")
+        return {"error": str(e)}
+
+
+def _export_to_csv(export_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Verileri CSV formatında export eder"""
+    try:
+        import csv
+        import io
+        
+        # CSV string buffer oluştur
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Ana bilgileri yaz
+        writer.writerow(["Export Bilgileri"])
+        writer.writerow(["Tarih", export_data["export_info"]["timestamp"]])
+        writer.writerow(["Veri Tipi", export_data["export_info"]["data_type"]])
+        writer.writerow(["Öğrenci ID", export_data["export_info"]["student_id"]])
+        writer.writerow([])
+        
+        # Veri bölümlerini yaz
+        for section_name, section_data in export_data["data"].items():
+            writer.writerow([f"=== {section_name.upper()} ==="])
+            
+            if isinstance(section_data, dict):
+                _write_dict_to_csv(writer, section_data, "")
+            elif isinstance(section_data, list):
+                _write_list_to_csv(writer, section_data, "")
+            
+            writer.writerow([])
+        
+        # CSV string'i al
+        csv_string = output.getvalue()
+        output.close()
+        
+        # Dosya adı oluştur
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"student_data_{timestamp}.csv"
+        
+        return {
+            "success": True,
+            "format": "csv",
+            "filename": filename,
+            "data": csv_string,
+            "size_bytes": len(csv_string.encode('utf-8')),
+            "download_ready": True
+        }
+        
+    except Exception as e:
+        logger.error(f"CSV export hatası: {e}")
+        return {"error": str(e)}
+
+
+def _write_dict_to_csv(writer, data: Dict[str, Any], prefix: str = ""):
+    """Dictionary'yi CSV'ye yazar"""
+    for key, value in data.items():
+        if isinstance(value, dict):
+            writer.writerow([f"{prefix}{key}", ""])
+            _write_dict_to_csv(writer, value, prefix + "  ")
+        elif isinstance(value, list):
+            writer.writerow([f"{prefix}{key}", ""])
+            _write_list_to_csv(writer, value, prefix + "  ")
+        else:
+            writer.writerow([f"{prefix}{key}", str(value)])
+
+
+def _write_list_to_csv(writer, data: List[Any], prefix: str = ""):
+    """List'i CSV'ye yazar"""
+    for i, item in enumerate(data):
+        if isinstance(item, dict):
+            writer.writerow([f"{prefix}[{i}]", ""])
+            _write_dict_to_csv(writer, item, prefix + "  ")
+        elif isinstance(item, list):
+            writer.writerow([f"{prefix}[{i}]", ""])
+            _write_list_to_csv(writer, item, prefix + "  ")
+        else:
+            writer.writerow([f"{prefix}[{i}]", str(item)])
+
+
+def _export_to_pdf(export_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Verileri PDF formatında export eder"""
+    try:
+        # PDF oluşturma için basit HTML template
+        html_content = _generate_pdf_html(export_data)
+        
+        # Dosya adı oluştur
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"student_data_{timestamp}.html"  # PDF yerine HTML döndürüyoruz
+        
+        return {
+            "success": True,
+            "format": "pdf",
+            "filename": filename,
+            "data": html_content,
+            "size_bytes": len(html_content.encode('utf-8')),
+            "download_ready": True,
+            "note": "HTML formatında döndürüldü. PDF'e çevirmek için tarayıcıda yazdır > PDF olarak kaydet kullanın."
+        }
+        
+    except Exception as e:
+        logger.error(f"PDF export hatası: {e}")
+        return {"error": str(e)}
+
+
+def _generate_pdf_html(export_data: Dict[str, Any]) -> str:
+    """PDF için HTML içeriği oluşturur"""
+    try:
+        html = f"""
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Öğrenci Veri Raporu</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; }}
+        .header {{ text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }}
+        .section {{ margin-bottom: 20px; }}
+        .section-title {{ background-color: #f0f0f0; padding: 10px; font-weight: bold; }}
+        .data-row {{ margin: 5px 0; }}
+        .key {{ font-weight: bold; color: #333; }}
+        .value {{ margin-left: 20px; }}
+        table {{ width: 100%; border-collapse: collapse; margin: 10px 0; }}
+        th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+        th {{ background-color: #f2f2f2; }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Öğrenci Veri Raporu</h1>
+        <p>Oluşturulma Tarihi: {export_data['export_info']['timestamp']}</p>
+        <p>Öğrenci ID: {export_data['export_info']['student_id']}</p>
+        <p>Veri Tipi: {export_data['export_info']['data_type']}</p>
+    </div>
+"""
+        
+        # Her veri bölümü için HTML oluştur
+        for section_name, section_data in export_data["data"].items():
+            html += f"""
+    <div class="section">
+        <div class="section-title">{section_name.upper()}</div>
+        {_generate_section_html(section_data)}
+    </div>
+"""
+        
+        html += """
+</body>
+</html>
+"""
+        
+        return html
+        
+    except Exception as e:
+        logger.error(f"HTML oluşturma hatası: {e}")
+        return f"<html><body><h1>Hata</h1><p>{str(e)}</p></body></html>"
+
+
+def _generate_section_html(section_data: Any) -> str:
+    """Bölüm verilerini HTML'e çevirir"""
+    try:
+        if isinstance(section_data, dict):
+            html = ""
+            for key, value in section_data.items():
+                if isinstance(value, dict):
+                    html += f'<div class="data-row"><span class="key">{key}:</span></div>'
+                    html += f'<div class="value">{_generate_section_html(value)}</div>'
+                elif isinstance(value, list):
+                    html += f'<div class="data-row"><span class="key">{key}:</span></div>'
+                    html += f'<div class="value">{_generate_section_html(value)}</div>'
+                else:
+                    html += f'<div class="data-row"><span class="key">{key}:</span> <span class="value">{str(value)}</span></div>'
+            return html
+        
+        elif isinstance(section_data, list):
+            if section_data and isinstance(section_data[0], dict):
+                # Tablo formatında göster
+                if section_data:
+                    keys = list(section_data[0].keys())
+                    html = '<table><thead><tr>'
+                    for key in keys:
+                        html += f'<th>{key}</th>'
+                    html += '</tr></thead><tbody>'
+                    
+                    for item in section_data:
+                        html += '<tr>'
+                        for key in keys:
+                            html += f'<td>{str(item.get(key, ""))}</td>'
+                        html += '</tr>'
+                    
+                    html += '</tbody></table>'
+                    return html
+                else:
+                    return '<p>Veri bulunamadı</p>'
+            else:
+                # Basit liste
+                html = '<ul>'
+                for item in section_data:
+                    html += f'<li>{str(item)}</li>'
+                html += '</ul>'
+                return html
+        
+        else:
+            return f'<span class="value">{str(section_data)}</span>'
+            
+    except Exception as e:
+        logger.error(f"Bölüm HTML oluşturma hatası: {e}")
+        return f'<p>Hata: {str(e)}</p>'
+
+
+def _export_to_excel(export_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Verileri Excel formatında export eder"""
+    try:
+        # Excel için CSV formatında döndür (gerçek Excel için openpyxl gerekli)
+        csv_result = _export_to_csv(export_data)
+        if "error" in csv_result:
+            return csv_result
+        
+        # Dosya adını Excel olarak değiştir
+        csv_result["format"] = "excel"
+        csv_result["filename"] = csv_result["filename"].replace(".csv", ".xlsx")
+        csv_result["note"] = "CSV formatında döndürüldü. Excel'de açmak için: Veri > Metin'den Sütunlara > Virgülle ayrılmış"
+        
+        return csv_result
+        
+    except Exception as e:
+        logger.error(f"Excel export hatası: {e}")
+        return {"error": str(e)}
+
+
+def student_obs_get_export_formats() -> Dict[str, Any]:
+    """Desteklenen export formatlarını listeler"""
+    try:
+        formats = {
+            "json": {
+                "name": "JSON",
+                "description": "JavaScript Object Notation - Yapılandırılmış veri formatı",
+                "extension": ".json",
+                "best_for": "API entegrasyonu, veri işleme",
+                "file_size": "Küçük-Orta"
+            },
+            "csv": {
+                "name": "CSV",
+                "description": "Comma Separated Values - Tablo formatında veri",
+                "extension": ".csv",
+                "best_for": "Excel, Google Sheets, veri analizi",
+                "file_size": "Küçük"
+            },
+            "pdf": {
+                "name": "PDF",
+                "description": "Portable Document Format - Yazdırılabilir rapor",
+                "extension": ".pdf",
+                "best_for": "Resmi belgeler, yazdırma, paylaşım",
+                "file_size": "Orta-Büyük"
+            },
+            "excel": {
+                "name": "Excel",
+                "description": "Microsoft Excel formatı - Gelişmiş tablo özellikleri",
+                "extension": ".xlsx",
+                "best_for": "Veri analizi, grafikler, hesaplamalar",
+                "file_size": "Orta"
+            }
+        }
+        
+        return {
+            "success": True,
+            "formats": formats,
+            "recommendations": {
+                "data_analysis": ["csv", "excel"],
+                "sharing": ["pdf", "json"],
+                "programming": ["json", "csv"],
+                "printing": ["pdf"]
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Export format listesi hatası: {e}")
+        return {"error": str(e)}
+
+
 
 

@@ -11,10 +11,19 @@ Bu proje, Isparta Üniversitesi'nin OBS (Öğrenci Bilgi Sistemi) sistemine eri�
 - 📋 **Transkript**: Not dökümü ve akademik kayıtlar
 - 🔍 **HTML Parsing**: Otomatik veri çıkarma
 - 🛡️ **Session Yönetimi**: Güvenli oturum kontrolü
+- 🚀 **Akademik Analiz**: GPA trend analizi ve performans takibi
+- 🎯 **Ders Seçim Asistanı**: Ön koşul kontrolü ve öneriler
+- 🔔 **Bildirim Sistemi**: Akıllı uyarılar ve hatırlatıcılar
+- 📤 **Veri Export**: JSON, CSV, PDF, Excel formatlarında export
 
 ## 📦 Özellikler ve Durum
 
 Durum efsanesi: ✅ Hazır · 🧪 Deneysel · 🕓 Planlı · ⚠️ Sorunlu
+
+### 🔐 Temel Fonksiyonlar
+- ✅ Giriş/Çıkış İşlemleri — Güvenli oturum yönetimi
+- ✅ Sayfa Navigasyonu — Farklı OBS sayfalarına erişim
+- ✅ Debug Modları — Teknik sorunları tespit etme
 
 ### 📊 Akademik Bilgiler
 - ✅ Öğrenci Profil Bilgileri — Kişisel bilgiler, fakülte, bölüm, danışman
@@ -22,35 +31,37 @@ Durum efsanesi: ✅ Hazır · 🧪 Deneysel · 🕓 Planlı · ⚠️ Sorunlu
 - ✅ Dönem Dersleri — Mevcut dönem dersleri, notlar, öğretim görevlileri
 - ✅ Aldığınız Dersler — Tüm derslerinizin detaylı listesi
 
+### 🚀 Yeni Eklenen Özellikler
+- ✅ **Akademik Analiz** — GPA trend analizi, kredi tamamlama oranı, ders başarı grafiği
+- ✅ **Performans Takibi** — Akademik hedefler, ilerleme durumu, hedef önerileri
+- ✅ **Ders Seçim Asistanı** — Ön koşul kontrolü, kredi hesaplama, ders çakışma kontrolü
+- ✅ **Bildirim Sistemi** — Düşük not uyarıları, devamsızlık uyarıları, harç ödeme hatırlatıcıları
+- ✅ **Veri Export** — JSON, CSV, PDF, Excel formatlarında kapsamlı raporlama
+
 ### 📬 İletişim ve Bilgilendirme
 - 🕓 Mesaj Kutusu — Öğretim görevlileri ve öğrenci işleri mesajları
 - ✅ Duyurular — Güncel üniversite duyuruları
 - ✅ Sistem Menü Erişimi — Tüm mevcut sayfa linklerini görme
 
-### 🔐 Sistem Yönetimi
-- ✅ Giriş/Çıkış İşlemleri — Güvenli oturum yönetimi
-- ✅ Sayfa Navigasyonu — Farklı OBS sayfalarına erişim
-- ✅ Debug Modları — Teknik sorunları tespit etme
-
-### 🟡 Program ve Takvim (Deneyebilirim)
-- ✅ Ders Programı — Haftalık ders saatleri (tool: `student_weekly_schedule`)
+### 🟡 Program ve Takvim
+- ✅ Ders Programı — Haftalık ders saatleri
 - ⚠️ Sınav Programı — Sınav tarihleri (dinamik içerik kaynaklı teknik sorunlar)
-- ✅ Devamsızlık Takibi — Yoklama bilgileri (tool: `student_attendance`)
+- ✅ Devamsızlık Takibi — Yoklama bilgileri
 
 ### 💰 Mali Bilgiler
-- ✅ Harç Bilgileri — Ödeme durumları (tool: `student_fees`)
-- ✅ Kütüphane/Malzeme Bilgileri — Borç durumu (tool: `student_library`)
+- ✅ Harç Bilgileri — Ödeme durumları
+- ✅ Kütüphane/Malzeme Bilgileri — Borç durumu
 
 ### 📋 İşlemler ve Başvurular
-- ✅ Kayıt Yenileme — Ders ekleme/bırakma (tool: `student_registration`)
-- ✅ Bitirme Tezi İşlemleri — Proje başvuruları (tool: `student_thesis`)
-- ✅ Staj Başvuruları — Zorunlu/isteğe bağlı staj (tool: `student_internships`)
-- ✅ Dilekçe İşlemleri — Online başvuru formu (tool: `student_petitions`)
+- ✅ Kayıt Yenileme — Ders ekleme/bırakma
+- ✅ Bitirme Tezi İşlemleri — Proje başvuruları
+- ✅ Staj Başvuruları — Zorunlu/isteğe bağlı staj
+- ✅ Dilekçe İşlemleri — Online başvuru formu
 
 ### 📚 Eğitim İçerikleri
-- ✅ Ders Dökümanları — Ders materyalleri (tool: `student_materials`)
-- ✅ Online Eğitim Platformu — Uzaktan eğitim erişimi (tool: `student_online_education_links`)
-- ✅ Etkinlikler — Katıldığınız etkinlikler (tool: `student_events`)
+- ✅ Ders Dökümanları — Ders materyalleri
+- ✅ Online Eğitim Platformu — Uzaktan eğitim erişimi
+- ✅ Etkinlikler — Katıldığınız etkinlikler
 
 ### ❌ Şu Anda Sorun Yaşananlar
 - ⚠️ Not Ortalaması Hesaplama — JavaScript tabanlı sayfa
@@ -160,6 +171,44 @@ my_courses = student_my_courses()
 page_info = student_navigate_to_page("/Birimler/Ogrenci/Derslerim.aspx")
 ```
 
+### 🚀 Yeni Özellikler
+
+#### Akademik Analiz
+```python
+# Kapsamlı akademik analiz
+analytics = student_academic_analytics()
+
+# Performans takibi
+performance = student_performance_tracking()
+
+# Ders seçim asistanı
+course_advisor = student_course_advisor()
+```
+
+#### Bildirim Sistemi
+```python
+# Tüm bildirimleri al
+notifications = student_notifications()
+
+# Bildirim ayarları
+settings = student_notification_settings()
+
+# Bildirimi okundu işaretle
+result = student_mark_notification_read("notification_id")
+```
+
+#### Veri Export
+```python
+# JSON formatında export
+json_data = student_export_data(format="json", data_type="academic")
+
+# CSV formatında export
+csv_data = student_export_data(format="csv", data_type="all")
+
+# Desteklenen formatları listele
+formats = student_export_formats()
+```
+
 ## 🛠️ API Referansı
 
 ### Login Fonksiyonları
@@ -200,42 +249,74 @@ page_info = student_navigate_to_page("/Birimler/Ogrenci/Derslerim.aspx")
 | `student_online_education_links()` | Online eğitim linkleri | Yok |
 | `student_events()` | Etkinlikler | Yok |
 
+### 🚀 Yeni Eklenen Özellikler
+
+| Fonksiyon | Açıklama | Parametreler |
+|-----------|----------|--------------|
+| `student_academic_analytics()` | Akademik performans analizi | Yok |
+| `student_performance_tracking()` | Performans takibi ve hedefler | Yok |
+| `student_course_advisor()` | Ders seçim asistanı | Yok |
+| `student_notifications()` | Bildirim ve uyarı sistemi | Yok |
+| `student_notification_settings()` | Bildirim ayarları | Yok |
+| `student_mark_notification_read()` | Bildirim okundu işaretleme | `notification_id` |
+| `student_export_data()` | Veri export | `format`, `data_type` |
+| `student_export_formats()` | Desteklenen export formatları | Yok |
+
 ## 📋 Örnek Çıktılar
 
-### Öğrenci Bilgileri
+### Akademik Analiz
 ```json
 {
-  "student_id": "**********",
-  "first_name": "***",
-  "last_name": "***",
-  "tc_identity": "***********",
-  "faculty": "Teknoloji Fakültesi",
-  "department": "Bilgisayar Mühendisliği",
-  "class_level": "1",
-  "education_type": "1.Öğretim",
-  "section": "A",
-  "advisor": "******",
-  "status": "OKUYAN",
-  "email": "*********@isparta.edu.tr",
-  "academic_records": [...],
-  "menu_links": [...]
+  "success": true,
+  "analytics": {
+    "gpa_trend": {
+      "current_gpa": 3.45,
+      "trend": "improving",
+      "improvement_potential": 0.55
+    },
+    "credit_analysis": {
+      "completion_rate": 75.5,
+      "remaining_credits": 60,
+      "estimated_semesters_to_graduation": 2.0
+    },
+    "overall_score": {
+      "total_score": 82.3,
+      "level": "A",
+      "grade": "BA"
+    }
+  }
 }
 ```
 
-### Duyuru Listesi
+### Bildirim Sistemi
 ```json
 {
-  "announcements": [
+  "success": true,
+  "notifications": [
     {
-      "id": "1",
-      "title": "2025-2026 AKADEMİK TAKVİMİ",
-      "url": "https://obs.isparta.edu.tr/...",
-      "date": "Pzt, 18.Ağu.2025",
-      "source": "OBS Ana Sayfa"
+      "type": "Academic Warning",
+      "priority": "High",
+      "title": "Düşük GPA Uyarısı",
+      "message": "GPA'nız 1.85 ile 2.0'ın altında",
+      "action_required": true
     }
   ],
-  "count": 1,
-  "source": "OBS"
+  "summary": {
+    "total_notifications": 3,
+    "high_priority": 1,
+    "medium_priority": 2
+  }
+}
+```
+
+### Veri Export
+```json
+{
+  "success": true,
+  "format": "csv",
+  "filename": "student_data_20241201_143022.csv",
+  "size_bytes": 15420,
+  "download_ready": true
 }
 ```
 
@@ -245,8 +326,8 @@ page_info = student_navigate_to_page("/Birimler/Ogrenci/Derslerim.aspx")
 
 ```
 uni-mcp/
-├── core.py              # Ana fonksiyonlar
-├── server.py            # MCP server
+├── core.py              # Ana fonksiyonlar ve yeni özellikler
+├── server.py            # MCP server ve tool tanımları
 ├── requirements.txt     # Python bağımlılıkları
 ├── requirements-mcp.txt # MCP bağımlılıkları
 ├── pyproject.toml      # Proje konfigürasyonu
