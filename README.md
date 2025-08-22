@@ -61,15 +61,15 @@ Durum efsanesi: ✅ Hazır · 🧪 Deneysel · 🕓 Planlı · ⚠️ Sorunlu
 
 ### Gereksinimler
 
-- Python 3.8+
+- Python 3.10+
 - pip veya uv
 
 ### Adımlar
 
 1. **Projeyi klonlayın:**
 ```bash
-git clone <repository-url>
-cd uni-mcp
+git clone https://github.com/kullanici-adi/isparta-uni-obs-mcp.git
+cd isparta-uni-obs-mcp
 ```
 
 2. **Bağımlılıkları yükleyin:**
@@ -160,16 +160,6 @@ my_courses = student_my_courses()
 page_info = student_navigate_to_page("/Birimler/Ogrenci/Derslerim.aspx")
 ```
 
-### 🔍 Genel Fonksiyonlar
-
-```python
-# Bölüm listesi
-departments = get_departments()
-
-# Duyuru arama
-announcements = get_announcements(query="sınav", limit=5)
-```
-
 ## 🛠️ API Referansı
 
 ### Login Fonksiyonları
@@ -192,13 +182,23 @@ announcements = get_announcements(query="sınav", limit=5)
 | `student_profile()` | Profil | `profile_path` |
 | `student_navigate_to_page()` | Sayfa navigasyonu | `page_path` |
 
-### Yardımcı Fonksiyonlar
+### Öğrenci Sayfa Fonksiyonları
 
 | Fonksiyon | Açıklama | Parametreler |
 |-----------|----------|--------------|
-| `parse_student_info()` | HTML parse | `html_content` |
-| `get_departments()` | Bölüm listesi | Yok |
-| `get_announcements()` | Duyuru arama | `query`, `limit` |
+| `student_term_courses()` | Dönem dersleri | Yok |
+| `student_my_courses()` | Derslerim | Yok |
+| `student_weekly_schedule()` | Haftalık program | Yok |
+| `student_attendance()` | Devamsızlık | Yok |
+| `student_fees()` | Harç bilgileri | Yok |
+| `student_library()` | Kütüphane borçları | Yok |
+| `student_registration()` | Kayıt yenileme | Yok |
+| `student_thesis()` | Tez işlemleri | Yok |
+| `student_internships()` | Staj başvuruları | Yok |
+| `student_petitions()` | Dilekçe işlemleri | Yok |
+| `student_materials()` | Ders materyalleri | Yok |
+| `student_online_education_links()` | Online eğitim linkleri | Yok |
+| `student_events()` | Etkinlikler | Yok |
 
 ## 📋 Örnek Çıktılar
 

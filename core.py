@@ -27,20 +27,7 @@ logger = logging.getLogger(__name__)
 # TYPED DICT TANIMLARI
 # =============================================================================
 
-class Departman(TypedDict):
-    """Bölüm bilgileri için tip tanımı"""
-    code: str
-    name: str
-    faculty: Optional[str]
 
-
-class Announcement(TypedDict):
-    """Duyuru bilgileri için tip tanımı"""
-    id: str
-    title: str
-    url: str
-    date: str
-    source: str
 
 
 class StudentProfile(TypedDict, total=False):
@@ -130,7 +117,7 @@ def _extract_csrf_fields(html_text: str) -> Dict[str, str]:
         return {}
 
 
-def _parse_home_announcements(html_text: str, base_url: str, limit: int) -> List[Announcement]:
+def _parse_home_announcements(html_text: str, base_url: str, limit: int) -> List[Dict[str, Any]]:
     """
     OBS ana sayfasındaki duyuruları HTML'den çıkarır.
     
@@ -161,7 +148,7 @@ def _parse_home_announcements(html_text: str, base_url: str, limit: int) -> List
             logger.warning("Duyuru tablosu bulunamadı")
             return []
 
-        results: List[Announcement] = []
+        results: List[Dict[str, Any]] = []
         
         # Satırlardaki link ve tarihi topla
         for row in grid.find_all("tr"):
@@ -180,7 +167,7 @@ def _parse_home_announcements(html_text: str, base_url: str, limit: int) -> List
             date_span = row.find("span")
             date_text = (date_span.get_text(strip=True) if date_span else "")
 
-            ann: Announcement = {
+            ann: Dict[str, Any] = {
                 "id": link.get("id") or title or "",
                 "title": title,
                 "url": urljoin(base_url, link.get("href", "")),
@@ -195,7 +182,7 @@ def _parse_home_announcements(html_text: str, base_url: str, limit: int) -> List
         return []
 
 
-def _parse_student_announcements(html_text: str, base_url: str, limit: int) -> List[Announcement]:
+def _parse_student_announcements(html_text: str, base_url: str, limit: int) -> List[Dict[str, Any]]:
     """Öğrenci panelindeki (logged-in) duyuru tablosunu parse eder.
     Beklenen tablo id: ctl00_ContentPlaceHolder1_Duyurular1_gridDuyuru
     Fallback: içeriğinde 'Duyuru' geçen tablo.
@@ -211,7 +198,7 @@ def _parse_student_announcements(html_text: str, base_url: str, limit: int) -> L
                     break
         if not grid:
             return []
-        results: List[Announcement] = []
+        results: List[Dict[str, Any]] = []
         for row in grid.find_all("tr"):
             if len(results) >= limit:
                 break
@@ -223,7 +210,7 @@ def _parse_student_announcements(html_text: str, base_url: str, limit: int) -> L
                 continue
             date_span = row.find("span")
             date_text = (date_span.get_text(strip=True) if date_span else "")
-            ann: Announcement = {
+            ann: Dict[str, Any] = {
                 "id": link.get("id") or title or "",
                 "title": title,
                 "url": urljoin(base_url, link.get("href", "")),
@@ -1201,64 +1188,6 @@ def student_obs_get_events() -> Dict[str, Any]:
     ]
     return _try_fetch_tables(candidates)
 
-# =============================================================================
-# GENEL FONKSİYONLAR
-# =============================================================================
 
-def get_departments() -> List[Departman]:
-    """
-    Üniversite bölümlerinin listesini döndürür.
-    
-    Returns:
-        Bölüm listesi
-    """
-    # Bu fonksiyon şu an için boş, gelecekte API'den veri çekebilir
-    return []
-
-
-def get_announcements(query: str = "", limit: int = 10) -> List[Announcement]:
-    """
-    Duyuruları arar ve döndürür.
-    
-    Args:
-        query: Arama sorgusu
-        limit: Maksimum duyuru sayısı
-        
-    Returns:
-        Duyuru listesi
-    """
-    try:
-        # Eğer OBS oturumu varsa, OBS'den duyuruları çek
-        if _student_obs_session and _student_obs_base_url:
-            # Ana sayfaya git ve duyuruları çek
-            url = urljoin(_student_obs_base_url, "/")
-            resp = _student_obs_session.get(url, timeout=20)
-            if resp.status_code == 200:
-                announcements = _parse_home_announcements(resp.text, _student_obs_base_url, limit)
-                # Query filtreleme
-                if query:
-                    filtered = [ann for ann in announcements if query.lower() in ann["title"].lower()]
-                    return filtered[:limit]
-                return announcements[:limit]
-        
-        # OBS oturumu yoksa, doğrudan OBS ana sayfasından duyuruları çek
-        try:
-            resp = requests.get('https://obs.isparta.edu.tr/', timeout=20)
-            if resp.status_code == 200:
-                announcements = _parse_home_announcements(resp.text, 'https://obs.isparta.edu.tr/', limit)
-                # Query filtreleme
-                if query:
-                    filtered = [ann for ann in announcements if query.lower() in ann["title"].lower()]
-                    return filtered[:limit]
-                return announcements[:limit]
-        except Exception as e:
-            logger.warning(f"OBS ana sayfasından duyuru çekme hatası: {e}")
-        
-        # Hiçbir şekilde duyuru çekilemezse boş liste döndür
-        return []
-        
-    except Exception as e:
-        logger.error(f"Genel duyuru alma hatası: {e}")
-        return []
 
 

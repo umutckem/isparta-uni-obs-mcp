@@ -18,14 +18,6 @@ from fastmcp import FastMCP
 
 # Core modülünden fonksiyonları import et
 from core import (
-    # Tip tanımları
-    Departman,
-    Announcement,
-    
-    # Genel fonksiyonlar
-    get_departments as core_get_departments,
-    get_announcements as core_get_announcements,
-    
     # OBS login fonksiyonları
     student_obs_login,
     student_obs_logout,
@@ -57,42 +49,7 @@ from core import (
 # MCP server'ı oluştur
 mcp = FastMCP("uni-mcp")
 
-# =============================================================================
-# GENEL FONKSİYONLAR
-# =============================================================================
 
-@mcp.tool
-def get_departments() -> List[Dict[str, Any]]:
-    """
-    Üniversite bölümlerinin (departman) listesini döndürür.
-    
-    Returns:
-        Bölüm bilgilerini içeren liste
-    """
-    try:
-        departments = core_get_departments()
-        return [dept for dept in departments]
-    except Exception as e:
-        return [{"error": str(e)}]
-
-
-@mcp.tool
-def get_announcements(query: str = "", limit: int = 10) -> List[Dict[str, Any]]:
-    """
-    Duyuruları başlıkta arar ve isteğe göre sınırlar.
-    
-    Args:
-        query: Arama sorgusu (başlıkta aranır)
-        limit: Maksimum duyuru sayısı (varsayılan: 10)
-        
-    Returns:
-        Duyuru listesi
-    """
-    try:
-        announcements = core_get_announcements(query, limit)
-        return [ann for ann in announcements]
-    except Exception as e:
-        return [{"error": str(e)}]
 
 
 # =============================================================================
