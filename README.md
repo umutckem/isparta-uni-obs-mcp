@@ -372,15 +372,13 @@ Bu proje MIT lisansı altında lisanslanmıştır.
 
 - Akademik analiz
 
+![A_page-0001](https://github.com/user-attachments/assets/e564ab83-f895-4530-9583-c60ac3c81788)
 
-![A_page-0001](https://github.com/user-attachments/assets/339f9f9d-60aa-4df9-b0a2-df9bef90a096)
+![A_page-0002](https://github.com/user-attachments/assets/52c1a893-1d2f-4191-bd5b-9ba7c272404a)
 
-![A_page-0002](https://github.com/user-attachments/assets/0f88d33c-a2ba-42aa-b4ac-ec31c4f4e0b8)
+![A_page-0003](https://github.com/user-attachments/assets/b1114782-8b25-4509-bb7d-0c69439fe687)
 
-![A_page-0003](https://github.com/user-attachments/assets/1eaa7399-0dd3-447c-92ea-d7636b8511a4)
-
-![A_page-0004](https://github.com/user-attachments/assets/6c234ad0-15b5-4159-b119-07347177220e)
-
+![A_page-0004](https://github.com/user-attachments/assets/d2f615f4-07f3-4192-ab97-e8b221a2ffa0)
 
 ## 📞 İletişim
 
