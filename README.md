@@ -368,6 +368,20 @@ Bu proje MIT lisansı altında lisanslanmıştır.
 4. Push yapın (`git push origin feature/amazing-feature`)
 5. Pull Request açın
 
+## Proje Görselleri
+
+- Akademik analiz
+
+
+![A_page-0001](https://github.com/user-attachments/assets/339f9f9d-60aa-4df9-b0a2-df9bef90a096)
+
+![A_page-0002](https://github.com/user-attachments/assets/0f88d33c-a2ba-42aa-b4ac-ec31c4f4e0b8)
+
+![A_page-0003](https://github.com/user-attachments/assets/1eaa7399-0dd3-447c-92ea-d7636b8511a4)
+
+![A_page-0004](https://github.com/user-attachments/assets/6c234ad0-15b5-4159-b119-07347177220e)
+
+
 ## 📞 İletişim
 
 Sorularınız için issue açabilir veya iletişime geçebilirsiniz.
